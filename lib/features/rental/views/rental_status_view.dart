@@ -141,7 +141,8 @@ class _RentalStatusContent extends StatelessWidget {
                               Expanded(
                                 child: TextButton(
                                   onPressed: () async {
-                                    await Navigator.of(context).push(
+                                    final result =
+                                        await Navigator.of(context).push(
                                       MaterialPageRoute(
                                         builder: (context) => QRScanView(
                                           rentalDuration: 0,
@@ -150,6 +151,13 @@ class _RentalStatusContent extends StatelessWidget {
                                         ),
                                       ),
                                     );
+                                    if (result == true && context.mounted) {
+                                      // 반납 성공 시 목록 새로고침
+                                      Provider.of<RentalStatusViewModel>(
+                                              context,
+                                              listen: false)
+                                          .refresh();
+                                    }
                                   },
                                   child: const Text('반납하기'),
                                 ),

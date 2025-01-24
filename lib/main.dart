@@ -6,6 +6,7 @@ import 'app/routes.dart';
 import 'core/constants/app_colors.dart';
 import 'core/services/auth_service.dart';
 import 'data/models/rental.dart';
+import 'data/models/accessory.dart';
 import 'features/auth/views/login_view.dart';
 import 'features/auth/views/signup_complete_view.dart';
 import 'features/auth/views/signup_view.dart';
@@ -18,6 +19,7 @@ import 'features/notice/views/notice_list_view.dart';
 import 'features/payment/views/payment_complete_view.dart';
 import 'features/payment/views/payment_view.dart';
 import 'features/rental/views/rental_view.dart';
+import 'features/rental/views/rental_detail_view.dart';
 import 'features/rental/views/rental_status_view.dart';
 import 'features/rental/views/rental_history_view.dart';
 
@@ -78,12 +80,24 @@ class MyApp extends StatelessWidget {
         Routes.home: (context) => const HomeView(),
         Routes.map: (context) => const MapView(),
         Routes.rental: (context) => const RentalView(),
+        Routes.rentalDetail: (context) {
+          final args = ModalRoute.of(context)!.settings.arguments
+              as Map<String, dynamic>;
+          final accessoryMap = args['accessory'] as Map<String, dynamic>;
+          final accessory = Accessory(
+            id: accessoryMap['id'],
+            name: accessoryMap['name'],
+            description: '대여 가능한 ${accessoryMap['name']}입니다.',
+            pricePerHour: accessoryMap['pricePerHour'],
+            category: AccessoryCategory.charger,
+            imageUrl: accessoryMap['imageUrl'],
+            isAvailable: accessoryMap['isAvailable'],
+          );
+          return RentalDetailView(accessory: accessory);
+        },
         Routes.rentalStatus: (context) => const RentalStatusView(),
         Routes.rentalHistory: (context) => const RentalHistoryView(),
-        Routes.payment: (context) => PaymentView(
-              rentalInfo: ModalRoute.of(context)!.settings.arguments
-                  as Map<String, dynamic>,
-            ),
+        Routes.payment: (context) => const PaymentView(),
         Routes.paymentComplete: (context) => PaymentCompleteView(
               rental: ModalRoute.of(context)!.settings.arguments as Rental,
             ),

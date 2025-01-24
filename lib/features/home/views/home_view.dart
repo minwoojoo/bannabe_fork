@@ -6,6 +6,8 @@ import '../../../core/widgets/loading_animation.dart';
 import '../../../app/routes.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/widgets/map_view.dart';
+import '../../../core/services/storage_service.dart';
+import '../../../data/models/rental.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -333,12 +335,20 @@ class _HomeViewState extends State<HomeView> {
                                                   child: Material(
                                                     color: Colors.transparent,
                                                     child: InkWell(
-                                                      onTap: () {
-                                                        Navigator.of(context)
-                                                            .pushNamed(
-                                                          Routes.rental,
-                                                          arguments: rental,
-                                                        );
+                                                      onTap: () async {
+                                                        await _saveRentalInfo(
+                                                            rental);
+                                                        if (context.mounted) {
+                                                          Navigator.of(context)
+                                                              .pushNamed(
+                                                            Routes.rentalDetail,
+                                                            arguments: {
+                                                              'accessory':
+                                                                  await _getAccessoryFromRental(
+                                                                      rental),
+                                                            },
+                                                          );
+                                                        }
                                                       },
                                                       child: const Padding(
                                                         padding: EdgeInsets.all(
@@ -458,5 +468,30 @@ class _HomeViewState extends State<HomeView> {
         ),
       ),
     );
+  }
+
+  Future<void> _saveRentalInfo(Rental rental) async {
+    final storageService = StorageService.instance;
+    await storageService.setString('selected_accessory_id', rental.accessoryId);
+    await storageService.setString('selected_station_id', rental.stationId);
+
+    // 대여 시간 계산 (최소 1시간)
+    final rentalHours = rental.updatedAt.difference(rental.createdAt).inHours;
+    final hours = rentalHours > 0 ? rentalHours : 1;
+    await storageService.setInt('selected_rental_duration', hours.clamp(1, 24));
+  }
+
+  Future<Map<String, dynamic>> _getAccessoryFromRental(Rental rental) async {
+    // 대여 시간 계산 (최소 1시간)
+    final rentalHours = rental.updatedAt.difference(rental.createdAt).inHours;
+    final hours = rentalHours > 0 ? rentalHours : 1;
+
+    return {
+      'id': rental.accessoryId,
+      'name': rental.accessoryName,
+      'pricePerHour': rental.totalPrice ~/ hours,
+      'imageUrl': 'assets/images/accessories/${rental.accessoryId}.png',
+      'isAvailable': true,
+    };
   }
 }

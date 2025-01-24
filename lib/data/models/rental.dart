@@ -68,13 +68,13 @@ class Rental {
   }
 
   String get formattedRentalTime {
-    final duration = DateTime.now().difference(createdAt);
-    if (duration.inDays > 0) {
-      return '${duration.inDays}일';
-    } else if (duration.inHours > 0) {
-      return '${duration.inHours}시간';
+    // 시간당 가격으로 대여 시간 계산
+    final hours = totalPrice ~/ 1000;
+
+    if (status == RentalStatus.active) {
+      return '$hours시간';
     } else {
-      return '${duration.inMinutes}분';
+      return '$hours시간 이용';
     }
   }
 

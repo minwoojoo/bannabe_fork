@@ -45,6 +45,10 @@ dependencies:
   flutter_naver_map: ^1.1.1
   firebase_core: ^2.27.1
   firebase_auth: ^4.17.9
+  # QR 스캔
+  qr_code_scanner: ^1.0.1
+  # 권한 요청
+  permission_handler: ^11.3.0
 
 dev_dependencies:
   flutter_test:

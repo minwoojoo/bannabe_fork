@@ -14,52 +14,54 @@ enum PaymentMethod {
 class PaymentViewModel with ChangeNotifier {
   final RentalRepository _rentalRepository;
   final StorageService _storageService;
-  final Rental _rental;
-
-  PaymentMethod _selectedMethod = PaymentMethod.card;
-  bool _isProcessing = false;
+  final Rental rental;
+  PaymentMethod? _selectedMethod;
+  bool _isLoading = false;
   String? _error;
   bool _isComplete = false;
 
   PaymentViewModel({
-    required Rental rental,
+    required this.rental,
     RentalRepository? rentalRepository,
     StorageService? storageService,
-  })  : _rental = rental,
-        _rentalRepository = rentalRepository ?? RentalRepository.instance,
+  })  : _rentalRepository = rentalRepository ?? RentalRepository.instance,
         _storageService = storageService ?? StorageService.instance;
 
-  PaymentMethod get selectedMethod => _selectedMethod;
-  bool get isProcessing => _isProcessing;
+  PaymentMethod? get selectedMethod => _selectedMethod;
+  bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isComplete => _isComplete;
-  Rental get rental => _rental;
 
-  void selectPaymentMethod(PaymentMethod method) {
-    _selectedMethod = method;
-    notifyListeners();
-  }
+  Future<void> requestPayment() async {
+    if (_selectedMethod == null) {
+      _error = '결제 수단을 선택해주세요';
+      notifyListeners();
+      return;
+    }
 
-  Future<void> processPayment(BuildContext context) async {
-    _isProcessing = true;
+    _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      // 결제 프로세스 시뮬레이션
+      // 결제 시뮬레이션을 위한 딜레이
       await Future.delayed(const Duration(seconds: 2));
 
-      // 결제 성공 시 선택 정보 삭제
-      await _storageService.clearSelections();
-
       // 결제 성공 처리
+      await _rentalRepository.create(rental);
+      await _storageService.clearSelections();
       _isComplete = true;
     } catch (e) {
-      _error = e.toString();
+      _error = '결제 처리 중 오류가 발생했습니다';
     } finally {
-      _isProcessing = false;
+      _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void selectPaymentMethod(PaymentMethod method) {
+    _selectedMethod = method;
+    notifyListeners();
   }
 
   String getPaymentMethodName(PaymentMethod method) {

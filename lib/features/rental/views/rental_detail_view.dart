@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../../core/constants/app_theme.dart';
+import '../../../core/services/storage_service.dart';
+import '../../../core/widgets/bottom_navigation_bar.dart';
+import './qr_scan_view.dart';
 import '../../../data/models/accessory.dart';
 import '../../../data/models/station.dart';
 import '../../../app/routes.dart';
 import '../../station/views/station_selection_view.dart';
-import '../../../core/services/storage_service.dart';
-import '../../../core/widgets/bottom_navigation_bar.dart';
+import '../../../data/repositories/station_repository.dart';
 
 class RentalDetailView extends StatefulWidget {
   final Accessory accessory;
@@ -29,17 +32,45 @@ class _RentalDetailViewState extends State<RentalDetailView> {
   void initState() {
     super.initState();
     _selectedStation = widget.station;
-    _loadSelectedStation();
+
+    // 초기 대여 시간 쿠키 생성
+    _storageService.setInt('selected_rental_duration', _selectedHours);
+    _storageService.setInt(
+      'selected_price',
+      widget.accessory.pricePerHour * _selectedHours,
+    );
+
+    _loadSavedInfo();
   }
 
-  Future<void> _loadSelectedStation() async {
-    if (_selectedStation != null) return;
+  Future<void> _loadSavedInfo() async {
+    try {
+      // 저장된 스테이션 정보 불러오기
+      final savedStationId =
+          await _storageService.getString('selected_station_id');
+      final savedAccessoryId =
+          await _storageService.getString('selected_accessory_id');
 
-    final savedStation = await _storageService.getSelectedStation();
-    if (savedStation != null) {
-      setState(() {
-        _selectedStation = savedStation;
-      });
+      if (savedAccessoryId == widget.accessory.id && mounted) {
+        // 스테이션 정보 불러오기
+        if (savedStationId != null) {
+          final stationRepository = StationRepository.instance;
+          final station = await stationRepository.getStation(savedStationId);
+          if (station != null) {
+            setState(() {
+              _selectedStation = station;
+            });
+          }
+        }
+      }
+
+      // 사용한 정보는 삭제
+      await Future.wait([
+        _storageService.remove('selected_accessory_id'),
+        _storageService.remove('selected_station_id'),
+      ]);
+    } catch (e) {
+      print('Error loading saved info: $e');
     }
   }
 
@@ -156,6 +187,16 @@ class _RentalDetailViewState extends State<RentalDetailView> {
                                               setState(() {
                                                 _selectedHours--;
                                               });
+                                              // 시간 변경 시 쿠키 업데이트
+                                              _storageService.setInt(
+                                                'selected_rental_duration',
+                                                _selectedHours,
+                                              );
+                                              _storageService.setInt(
+                                                'selected_price',
+                                                widget.accessory.pricePerHour *
+                                                    _selectedHours,
+                                              );
                                             }
                                           : null,
                                       icon: const Icon(
@@ -172,6 +213,16 @@ class _RentalDetailViewState extends State<RentalDetailView> {
                                           setState(() {
                                             _selectedHours = value.toInt();
                                           });
+                                          // 시간 변경 시 쿠키 업데이트
+                                          _storageService.setInt(
+                                            'selected_rental_duration',
+                                            _selectedHours,
+                                          );
+                                          _storageService.setInt(
+                                            'selected_price',
+                                            widget.accessory.pricePerHour *
+                                                _selectedHours,
+                                          );
                                         },
                                       ),
                                     ),
@@ -181,6 +232,16 @@ class _RentalDetailViewState extends State<RentalDetailView> {
                                               setState(() {
                                                 _selectedHours++;
                                               });
+                                              // 시간 변경 시 쿠키 업데이트
+                                              _storageService.setInt(
+                                                'selected_rental_duration',
+                                                _selectedHours,
+                                              );
+                                              _storageService.setInt(
+                                                'selected_price',
+                                                widget.accessory.pricePerHour *
+                                                    _selectedHours,
+                                              );
                                             }
                                           : null,
                                       icon:
@@ -338,18 +399,40 @@ class _RentalDetailViewState extends State<RentalDetailView> {
                   ElevatedButton(
                     onPressed: _selectedStation == null
                         ? null
-                        : () {
-                            Navigator.of(context).pushNamed(
-                              Routes.payment,
-                              arguments: {
-                                'accessory': widget.accessory,
-                                'station': _selectedStation,
-                                'hours': _selectedHours,
-                              },
+                        : () async {
+                            final scanned = await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => QRScanView(
+                                  rentalDuration: _selectedHours,
+                                  isReturn: false,
+                                ),
+                              ),
                             );
+
+                            if (scanned == true && context.mounted) {
+                              // 쿠키에 정보 저장
+                              await _storageService.setString(
+                                'selected_accessory_name',
+                                widget.accessory.name,
+                              );
+                              await _storageService.setString(
+                                'selected_station_name',
+                                _selectedStation?.name ?? '',
+                              );
+                              await _storageService.setInt(
+                                'selected_rental_duration',
+                                _selectedHours,
+                              );
+                              await _storageService.setInt(
+                                'selected_price',
+                                widget.accessory.pricePerHour * _selectedHours,
+                              );
+
+                              Navigator.of(context).pushNamed(Routes.payment);
+                            }
                           },
                     child: Text(
-                      _selectedStation == null ? '스테이션을 선택해주세요' : '결제하기',
+                      _selectedStation == null ? '스테이션을 선택해주세요' : 'QR 스캔하기',
                     ),
                   ),
                 ],

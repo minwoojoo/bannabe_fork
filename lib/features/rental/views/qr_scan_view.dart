@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../data/models/rental.dart';
 import '../viewmodels/qr_scan_viewmodel.dart';
 import '../../../core/constants/app_theme.dart';
@@ -21,19 +23,69 @@ class QRScanView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
+    return ChangeNotifierProvider<QRScanViewModel>(
       create: (_) => QRScanViewModel(
         rentalDuration: rentalDuration,
         isReturn: isReturn,
         initialRental: rental,
-      )..onQRViewCreated(),
-      child: const _QRScanContent(),
+      ),
+      child: Builder(
+        builder: (context) {
+          final viewModel = Provider.of<QRScanViewModel>(context, listen: true);
+
+          // QR 스캔 결과 처리
+          if (!viewModel.isProcessing) {
+            if (viewModel.isReturnComplete) {
+              // 반납 완료 시 true 반환
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Navigator.of(context).pop(true);
+              });
+            } else if (viewModel.rental != null && !viewModel.isReturn) {
+              // 대여 시 결제 페이지로 이동
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Navigator.of(context).pushReplacementNamed(
+                  Routes.payment,
+                  arguments: {
+                    'accessory': {
+                      'id': viewModel.rental!.accessoryId,
+                      'name': viewModel.rental!.accessoryName,
+                      'pricePerHour':
+                          viewModel.rental!.totalPrice ~/ rentalDuration,
+                    },
+                    'station': {
+                      'id': viewModel.rental!.stationId,
+                      'name': viewModel.rental!.stationName,
+                    },
+                    'hours': rentalDuration,
+                  },
+                );
+              });
+            }
+          }
+
+          return const _QRScanContent();
+        },
+      ),
     );
   }
 }
 
-class _QRScanContent extends StatelessWidget {
+class _QRScanContent extends StatefulWidget {
   const _QRScanContent();
+
+  @override
+  State<_QRScanContent> createState() => _QRScanContentState();
+}
+
+class _QRScanContentState extends State<_QRScanContent> {
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? controller;
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,79 +97,77 @@ class _QRScanContent extends StatelessWidget {
       body: SafeArea(
         child: Consumer<QRScanViewModel>(
           builder: (context, viewModel, _) {
-            if (viewModel.rental != null && !viewModel.isReturn) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.of(context).pushReplacementNamed(
-                  Routes.payment,
-                  arguments: viewModel.rental,
-                );
-              });
-            }
-
-            if (viewModel.isReturnComplete) {
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      '반납이 완료되었습니다',
-                      style: AppTheme.headlineMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    const Text(
-                      '의견을 남겨주세요',
-                      style: AppTheme.titleMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        return IconButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          onPressed: () => viewModel.setRating(index + 1),
-                          icon: Icon(
-                            index < viewModel.rating
-                                ? Icons.star
-                                : Icons.star_border,
-                            color: index < viewModel.rating
-                                ? Colors.amber
-                                : Colors.grey,
-                            size: 40,
-                          ),
-                        );
-                      }),
-                    ),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pushReplacementNamed(Routes.home);
+            if (viewModel.isScanning) {
+              return Stack(
+                children: [
+                  if (viewModel.hasCameraPermission) ...[
+                    QRView(
+                      key: qrKey,
+                      onQRViewCreated: (QRViewController controller) {
+                        this.controller = controller;
+                        viewModel.onQRViewCreated(controller);
                       },
-                      child: const Text('홈으로 돌아가기'),
+                      overlay: QrScannerOverlayShape(
+                        borderColor: AppColors.primary,
+                        borderRadius: 10,
+                        borderLength: 30,
+                        borderWidth: 10,
+                        cutOutSize: 300,
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: Container(
+                        alignment: Alignment.bottomCenter,
+                        padding: const EdgeInsets.only(bottom: 100),
+                        child: Text(
+                          viewModel.isReturn
+                              ? '반납할 스테이션의 QR 코드를 스캔해주세요'
+                              : '대여할 물품의 QR 코드를 스캔해주세요',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.camera_alt_outlined,
+                            color: AppColors.error,
+                            size: 48,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            '카메라 권한이 필요합니다',
+                            style: AppTheme.bodyLarge.copyWith(
+                              color: AppColors.error,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          TextButton(
+                            onPressed: () => openAppSettings(),
+                            child: const Text('설정으로 이동'),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                ),
+                ],
               );
             }
 
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (viewModel.isScanning) ...[
-                    const HoneyLoadingAnimation(
-                      isStationSelected: true,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'QR 코드를 스캔하고 있습니다...',
-                      style: AppTheme.bodyLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                  ] else if (viewModel.isProcessing) ...[
+            if (viewModel.isProcessing) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                     const HoneyLoadingAnimation(
                       isStationSelected: true,
                     ),
@@ -129,7 +179,16 @@ class _QRScanContent extends StatelessWidget {
                       style: AppTheme.bodyLarge,
                       textAlign: TextAlign.center,
                     ),
-                  ] else if (viewModel.error != null) ...[
+                  ],
+                ),
+              );
+            }
+
+            if (viewModel.error != null) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                     Icon(
                       Icons.error_outline,
                       color: AppColors.error,
@@ -149,9 +208,11 @@ class _QRScanContent extends StatelessWidget {
                       child: const Text('다시 시도'),
                     ),
                   ],
-                ],
-              ),
-            );
+                ),
+              );
+            }
+
+            return const Center(child: CircularProgressIndicator());
           },
         ),
       ),

@@ -30,6 +30,20 @@ class _MapContent extends StatelessWidget {
       appBar: AppBar(
         title: const Text('주변 스테이션'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              _showRecentStations(context);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.favorite),
+            onPressed: () {
+              _showFavoriteStations(context);
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Consumer<MapViewModel>(
@@ -54,28 +68,7 @@ class _MapContent extends StatelessWidget {
             return Stack(
               children: [
                 NaverMap(
-                  onMapReady: (controller) async {
-                    // 지도 컨트롤러 초기화
-                    await viewModel.onMapCreated(controller);
-
-                    // 현재 위치 오버레이 활성화
-                    final locationOverlay =
-                        await controller.getLocationOverlay();
-                    locationOverlay.setIsVisible(true);
-
-                    if (viewModel.currentLocation != null) {
-                      locationOverlay.setPosition(
-                        NLatLng(
-                          viewModel.currentLocation!.latitude,
-                          viewModel.currentLocation!.longitude,
-                        ),
-                      );
-                    }
-
-                    // 지도가 완전히 로드된 후 마커 추가
-                    await Future.delayed(const Duration(milliseconds: 500));
-                    await viewModel.addMarkers();
-                  },
+                  onMapReady: viewModel.onMapCreated,
                   options: NaverMapViewOptions(
                     initialCameraPosition: NCameraPosition(
                       target: viewModel.currentLocation != null
@@ -83,7 +76,7 @@ class _MapContent extends StatelessWidget {
                               viewModel.currentLocation!.latitude,
                               viewModel.currentLocation!.longitude,
                             )
-                          : const NLatLng(37.5665, 126.9780), // 기본값: 서울시청
+                          : const NLatLng(37.5665, 126.9780),
                       zoom: 15,
                     ),
                     contentPadding: const EdgeInsets.all(0),
@@ -92,6 +85,39 @@ class _MapContent extends StatelessWidget {
                     viewModel.clearSelectedStation();
                   },
                 ),
+                // 검색 바
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  right: 16,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      onChanged: viewModel.searchStations,
+                      decoration: InputDecoration(
+                        hintText: '스테이션 검색',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                // 현재 위치 버튼
                 Positioned(
                   right: 16,
                   bottom: viewModel.selectedStation != null ? 200 : 16,
@@ -105,6 +131,7 @@ class _MapContent extends StatelessWidget {
                     onPressed: viewModel.moveToCurrentLocation,
                   ),
                 ),
+                // 선택된 스테이션 정보
                 if (viewModel.selectedStation != null)
                   Positioned(
                     left: 0,
@@ -125,29 +152,47 @@ class _MapContent extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      viewModel.selectedStation!.name,
+                                      style: AppTheme.titleMedium,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      viewModel.selectedStation!.address,
+                                      style: AppTheme.bodyMedium.copyWith(
+                                        color: AppColors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Row(
                                 children: [
-                                  Text(
-                                    viewModel.selectedStation!.name,
-                                    style: AppTheme.titleMedium,
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    icon: Icon(
+                                      viewModel.isStationFavorite(
+                                              viewModel.selectedStation!)
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      color: AppColors.primary,
+                                    ),
+                                    onPressed: () => viewModel.toggleFavorite(
+                                        viewModel.selectedStation!),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    viewModel.selectedStation!.address,
-                                    style: AppTheme.bodyMedium.copyWith(
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(
+                                      Icons.close,
                                       color: AppColors.grey,
                                     ),
+                                    onPressed: viewModel.clearSelectedStation,
                                   ),
                                 ],
-                              ),
-                              IconButton(
-                                padding: EdgeInsets.zero,
-                                icon: const Icon(
-                                  Icons.close,
-                                  color: AppColors.grey,
-                                ),
-                                onPressed: viewModel.clearSelectedStation,
                               ),
                             ],
                           ),
@@ -193,6 +238,106 @@ class _MapContent extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: const AppBottomNavigationBar(currentIndex: 1),
+    );
+  }
+
+  void _showRecentStations(BuildContext context) {
+    final viewModel = Provider.of<MapViewModel>(context, listen: false);
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return ChangeNotifierProvider.value(
+          value: viewModel,
+          child: Consumer<MapViewModel>(
+            builder: (context, viewModel, _) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('최근 이용 스테이션', style: AppTheme.titleMedium),
+                    const SizedBox(height: 16),
+                    if (viewModel.recentStations.isEmpty)
+                      const Center(
+                        child: Text('최근 이용한 스테이션이 없습니다'),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: viewModel.recentStations.length,
+                        itemBuilder: (context, index) {
+                          final station = viewModel.recentStations[index];
+                          return ListTile(
+                            title: Text(station.name),
+                            subtitle: Text(station.address),
+                            onTap: () {
+                              viewModel.selectStation(station);
+                              Navigator.pop(context);
+                            },
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  void _showFavoriteStations(BuildContext context) {
+    final viewModel = Provider.of<MapViewModel>(context, listen: false);
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return ChangeNotifierProvider.value(
+          value: viewModel,
+          child: Consumer<MapViewModel>(
+            builder: (context, viewModel, _) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('즐겨찾기', style: AppTheme.titleMedium),
+                    const SizedBox(height: 16),
+                    if (viewModel.favoriteStations.isEmpty)
+                      const Center(
+                        child: Text('즐겨찾기한 스테이션이 없습니다'),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: viewModel.favoriteStations.length,
+                        itemBuilder: (context, index) {
+                          final station = viewModel.favoriteStations[index];
+                          return ListTile(
+                            title: Text(station.name),
+                            subtitle: Text(station.address),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.favorite),
+                              color: AppColors.primary,
+                              onPressed: () =>
+                                  viewModel.toggleFavorite(station),
+                            ),
+                            onTap: () {
+                              viewModel.selectStation(station);
+                              Navigator.pop(context);
+                            },
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

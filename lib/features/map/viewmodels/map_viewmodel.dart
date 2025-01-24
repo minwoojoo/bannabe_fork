@@ -21,6 +21,10 @@ class MapViewModel with ChangeNotifier {
   NaverMapController? _mapController;
   NLocationOverlay? _locationOverlay;
   final List<Station> _stations = [];
+  List<Station> _filteredStations = [];
+  List<Station> _favoriteStations = [];
+  List<Station> _recentStations = [];
+  String _searchQuery = '';
 
   MapViewModel({
     StationRepository? stationRepository,
@@ -35,6 +39,8 @@ class MapViewModel with ChangeNotifier {
   Station? get selectedStation => _selectedStation;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  List<Station> get favoriteStations => _favoriteStations;
+  List<Station> get recentStations => _recentStations;
 
   Future<void> onMapCreated(NaverMapController controller) async {
     _mapController = controller;
@@ -51,13 +57,22 @@ class MapViewModel with ChangeNotifier {
       );
     }
 
-    // 마커 추가
-    if (_markers.isNotEmpty) {
-      await _mapController?.addOverlayAll(_markers.toSet());
+    // 현재 위치 오버레이 활성화
+    if (_locationOverlay != null) {
+      _locationOverlay!.setIsVisible(true);
+      if (_currentPosition != null) {
+        _locationOverlay!.setPosition(
+          NLatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
+        );
+      }
     }
 
-    // 스테이션 로드
-    _loadStations();
+    // 마커 추가
+    await Future.delayed(const Duration(milliseconds: 500));
+    await addMarkers();
   }
 
   Future<void> addMarkers() async {
@@ -67,7 +82,10 @@ class MapViewModel with ChangeNotifier {
       'assets/images/honey.png',
     );
 
-    for (final station in _stations) {
+    _markers.clear();
+    final stations = _searchQuery.isEmpty ? _stations : _filteredStations;
+
+    for (final station in stations) {
       final marker = NMarker(
         id: station.id,
         position: NLatLng(
@@ -80,14 +98,15 @@ class MapViewModel with ChangeNotifier {
       );
 
       marker.setOnTapListener((marker) {
-        _selectStation(
-          _stations.firstWhere((s) => s.id == marker.info.id),
+        selectStation(
+          stations.firstWhere((s) => s.id == marker.info.id),
         );
       });
 
       _markers.add(marker);
     }
 
+    await _mapController?.clearOverlays();
     await _mapController?.addOverlayAll(_markers.toSet());
   }
 
@@ -100,8 +119,15 @@ class MapViewModel with ChangeNotifier {
       // 현재 위치를 먼저 가져옴
       await _getCurrentLocation();
 
+      // 모든 스테이션 로드
+      await _loadStations();
+
       // 저장된 스테이션 정보 불러오기
       _selectedStation = await _storageService.getSelectedStation();
+
+      // 즐겨찾기 및 최근 이용 스테이션 불러오기
+      await _loadFavoriteStations();
+      await _loadRecentStations();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -135,47 +161,23 @@ class MapViewModel with ChangeNotifier {
   }
 
   Future<void> _loadStations() async {
-    if (_currentPosition == null) return;
-
     try {
       final stations = await _stationRepository.getNearbyStations();
-      _markers.clear();
-
-      final markerIcon = await NOverlayImage.fromAssetImage(
-        'assets/images/honey.png',
-      );
-
-      for (final station in stations) {
-        final marker = NMarker(
-          id: station.id,
-          position: NLatLng(station.latitude, station.longitude),
-          icon: markerIcon,
-          size: const Size(48, 48),
-          anchor: const NPoint(0.5, 0.5),
-        );
-
-        marker.setOnTapListener((marker) {
-          _selectStation(station);
-        });
-
-        _markers.add(marker);
-      }
-
-      if (_mapController != null) {
-        await _mapController!.clearOverlays();
-        await _mapController!.addOverlayAll(_markers.toSet());
-      }
-
-      notifyListeners();
+      _stations.clear();
+      _stations.addAll(stations);
+      _filteredStations = _stations;
+      await addMarkers();
     } catch (e) {
       print('Failed to load stations: $e');
     }
   }
 
-  Future<void> _selectStation(Station station) async {
+  Future<void> selectStation(Station station) async {
     _selectedStation = station;
     // 선택한 스테이션 정보 저장
     await _storageService.setSelectedStation(station);
+    // 최근 이용 스테이션에 추가
+    await _addToRecentStations(station);
     if (_mapController != null) {
       await _mapController!.updateCamera(
         NCameraUpdate.withParams(
@@ -209,5 +211,95 @@ class MapViewModel with ChangeNotifier {
     _selectedStation = null;
     _storageService.clearSelections();
     notifyListeners();
+  }
+
+  // 검색 기능
+  void searchStations(String query) {
+    _searchQuery = query.toLowerCase();
+    _filteredStations = _stations.where((station) {
+      return station.name.toLowerCase().contains(_searchQuery) ||
+          station.address.toLowerCase().contains(_searchQuery);
+    }).toList();
+
+    // 검색 결과가 있으면 첫 번째 결과로 지도 중심 이동
+    if (_filteredStations.isNotEmpty && _mapController != null) {
+      final firstStation = _filteredStations.first;
+      _mapController!.updateCamera(
+        NCameraUpdate.withParams(
+          target: NLatLng(firstStation.latitude, firstStation.longitude),
+          zoom: 15,
+        ),
+      );
+    }
+
+    addMarkers();
+    notifyListeners();
+  }
+
+  // 즐겨찾기 기능
+  Future<void> _loadFavoriteStations() async {
+    try {
+      final favoriteIds =
+          await _storageService.getStringList('favorite_stations') ?? [];
+      _favoriteStations = _stations
+          .where((station) => favoriteIds.contains(station.id))
+          .toList();
+      notifyListeners();
+    } catch (e) {
+      print('Failed to load favorite stations: $e');
+    }
+  }
+
+  bool isStationFavorite(Station station) {
+    return _favoriteStations.any((s) => s.id == station.id);
+  }
+
+  Future<void> toggleFavorite(Station station) async {
+    try {
+      if (isStationFavorite(station)) {
+        _favoriteStations.removeWhere((s) => s.id == station.id);
+      } else {
+        _favoriteStations.add(station);
+      }
+
+      await _storageService.setStringList(
+        'favorite_stations',
+        _favoriteStations.map((s) => s.id).toList(),
+      );
+      notifyListeners();
+    } catch (e) {
+      print('Failed to toggle favorite: $e');
+    }
+  }
+
+  // 최근 이용 스테이션 기능
+  Future<void> _loadRecentStations() async {
+    try {
+      final recentIds =
+          await _storageService.getStringList('recent_stations') ?? [];
+      _recentStations =
+          _stations.where((station) => recentIds.contains(station.id)).toList();
+      notifyListeners();
+    } catch (e) {
+      print('Failed to load recent stations: $e');
+    }
+  }
+
+  Future<void> _addToRecentStations(Station station) async {
+    try {
+      _recentStations.removeWhere((s) => s.id == station.id);
+      _recentStations.insert(0, station);
+      if (_recentStations.length > 5) {
+        _recentStations = _recentStations.sublist(0, 5);
+      }
+
+      await _storageService.setStringList(
+        'recent_stations',
+        _recentStations.map((s) => s.id).toList(),
+      );
+      notifyListeners();
+    } catch (e) {
+      print('Failed to add to recent stations: $e');
+    }
   }
 }
