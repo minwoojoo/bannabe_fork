@@ -1,6 +1,4 @@
 import '../models/rental.dart';
-import '../models/accessory.dart';
-import '../models/station.dart';
 import 'base_repository.dart';
 
 class RentalRepository implements BaseRepository<Rental> {

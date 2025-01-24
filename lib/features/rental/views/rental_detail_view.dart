@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants/app_theme.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/widgets/bottom_navigation_bar.dart';
 import './qr_scan_view.dart';
 import '../../../data/models/accessory.dart';
 import '../../../data/models/station.dart';
 import '../../../app/routes.dart';
-import '../../station/views/station_selection_view.dart';
 import '../../../data/repositories/station_repository.dart';
 
 class RentalDetailView extends StatefulWidget {

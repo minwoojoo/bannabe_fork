@@ -1,5 +1,4 @@
 import '../models/user.dart';
-import '../models/rental.dart';
 import 'base_repository.dart';
 
 class UserRepository implements BaseRepository<User> {

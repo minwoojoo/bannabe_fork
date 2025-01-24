@@ -7,7 +7,6 @@ import '../../../data/repositories/accessory_repository.dart';
 import '../../../core/services/storage_service.dart';
 
 class QRScanViewModel with ChangeNotifier {
-  final RentalRepository _rentalRepository;
   final AccessoryRepository _accessoryRepository;
   final StorageService _storageService;
   final int _rentalDuration;
@@ -30,8 +29,7 @@ class QRScanViewModel with ChangeNotifier {
     required int rentalDuration,
     this.isReturn = false,
     this.initialRental,
-  })  : _rentalRepository = rentalRepository ?? RentalRepository.instance,
-        _accessoryRepository = accessoryRepository ?? AccessoryRepository(),
+  })  : _accessoryRepository = accessoryRepository ?? AccessoryRepository(),
         _storageService = storageService ?? StorageService.instance,
         _rentalDuration = rentalDuration {
     _checkCameraPermission();
@@ -88,8 +86,10 @@ class QRScanViewModel with ChangeNotifier {
     });
   }
 
+  @override
   void dispose() {
     _controller?.dispose();
+    super.dispose();
   }
 
   Future<void> processRentalQRCode(String qrCode) async {

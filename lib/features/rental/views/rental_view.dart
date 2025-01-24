@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../viewmodels/rental_viewmodel.dart';
 import '../../../data/models/accessory.dart';
-import '../../../data/models/station.dart';
 import '../../../core/widgets/bottom_navigation_bar.dart';
 import '../../../app/routes.dart';
 import './rental_detail_view.dart';
