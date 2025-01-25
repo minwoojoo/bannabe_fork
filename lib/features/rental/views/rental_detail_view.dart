@@ -61,12 +61,6 @@ class _RentalDetailViewState extends State<RentalDetailView> {
           }
         }
       }
-
-      // 사용한 정보는 삭제
-      await Future.wait([
-        _storageService.remove('selected_accessory_id'),
-        _storageService.remove('selected_station_id'),
-      ]);
     } catch (e) {
       print('Error loading saved info: $e');
     }
@@ -398,6 +392,32 @@ class _RentalDetailViewState extends State<RentalDetailView> {
                     onPressed: _selectedStation == null
                         ? null
                         : () async {
+                            // 쿠키에 정보 저장
+                            await _storageService.setString(
+                              'selected_accessory_id',
+                              widget.accessory.id,
+                            );
+                            await _storageService.setString(
+                              'selected_station_id',
+                              _selectedStation?.id ?? '',
+                            );
+                            await _storageService.setString(
+                              'selected_accessory_name',
+                              widget.accessory.name,
+                            );
+                            await _storageService.setString(
+                              'selected_station_name',
+                              _selectedStation?.name ?? '',
+                            );
+                            await _storageService.setInt(
+                              'selected_rental_duration',
+                              _selectedHours,
+                            );
+                            await _storageService.setInt(
+                              'selected_price',
+                              widget.accessory.pricePerHour * _selectedHours,
+                            );
+
                             final scanned = await Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) => QRScanView(
@@ -408,24 +428,6 @@ class _RentalDetailViewState extends State<RentalDetailView> {
                             );
 
                             if (scanned == true && context.mounted) {
-                              // 쿠키에 정보 저장
-                              await _storageService.setString(
-                                'selected_accessory_name',
-                                widget.accessory.name,
-                              );
-                              await _storageService.setString(
-                                'selected_station_name',
-                                _selectedStation?.name ?? '',
-                              );
-                              await _storageService.setInt(
-                                'selected_rental_duration',
-                                _selectedHours,
-                              );
-                              await _storageService.setInt(
-                                'selected_price',
-                                widget.accessory.pricePerHour * _selectedHours,
-                              );
-
                               Navigator.of(context).pushNamed(Routes.payment);
                             }
                           },

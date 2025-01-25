@@ -2,14 +2,28 @@ import 'package:flutter/material.dart';
 import '../../../data/models/rental.dart';
 import '../../../app/routes.dart';
 import '../../../core/constants/app_theme.dart';
+import '../../../core/services/storage_service.dart';
 
 class PaymentCompleteView extends StatelessWidget {
   final Rental rental;
+  final _storageService = StorageService.instance;
 
-  const PaymentCompleteView({
+  PaymentCompleteView({
     super.key,
     required this.rental,
   });
+
+  Future<void> _clearRentalInfo() async {
+    // 대여 관련 저장된 정보 모두 삭제
+    await Future.wait([
+      _storageService.remove('selected_accessory_id'),
+      _storageService.remove('selected_station_id'),
+      _storageService.remove('selected_accessory_name'),
+      _storageService.remove('selected_station_name'),
+      _storageService.remove('selected_rental_duration'),
+      _storageService.remove('selected_price'),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,8 +72,11 @@ class PaymentCompleteView extends StatelessWidget {
                 ),
                 const Spacer(),
                 ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pushReplacementNamed(Routes.home);
+                  onPressed: () async {
+                    await _clearRentalInfo();
+                    if (context.mounted) {
+                      Navigator.of(context).pushReplacementNamed(Routes.home);
+                    }
                   },
                   child: const Text('홈으로 돌아가기'),
                 ),
