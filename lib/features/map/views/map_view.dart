@@ -8,6 +8,7 @@ import '../../../core/widgets/loading_animation.dart';
 import '../viewmodels/map_viewmodel.dart';
 import '../../../app/routes.dart';
 import '../../../features/rental/views/rental_detail_view.dart';
+import '../../../core/services/storage_service.dart';
 
 class MapView extends StatelessWidget {
   const MapView({super.key});
@@ -16,13 +17,15 @@ class MapView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => MapViewModel()..init(),
-      child: const _MapContent(),
+      child: _MapContent(),
     );
   }
 }
 
 class _MapContent extends StatelessWidget {
-  const _MapContent();
+  _MapContent();
+
+  final _storageService = StorageService.instance;
 
   @override
   Widget build(BuildContext context) {
@@ -206,6 +209,16 @@ class _MapContent extends StatelessWidget {
                               ),
                               child: const Text('이 스테이션에서 대여하기'),
                               onPressed: () async {
+                                // 선택된 스테이션 정보 저장
+                                await _storageService.setString(
+                                  'selected_station_id',
+                                  viewModel.selectedStation!.id,
+                                );
+                                await _storageService.setString(
+                                  'selected_station_name',
+                                  viewModel.selectedStation!.name,
+                                );
+
                                 final savedAccessory =
                                     await viewModel.getSelectedAccessory();
                                 if (savedAccessory != null) {
