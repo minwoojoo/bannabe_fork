@@ -5,6 +5,7 @@ import '../../../data/models/rental.dart';
 import '../../../data/repositories/rental_repository.dart';
 import '../../../data/repositories/accessory_repository.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../data/repositories/station_repository.dart';
 
 class QRScanViewModel with ChangeNotifier {
   final AccessoryRepository _accessoryRepository;
@@ -13,7 +14,7 @@ class QRScanViewModel with ChangeNotifier {
   final bool isReturn;
   final Rental? initialRental;
 
-  bool _isScanning = false;
+  bool _isScanning = true;
   bool _isProcessing = false;
   bool _hasCameraPermission = false;
   String? _error;
@@ -21,6 +22,7 @@ class QRScanViewModel with ChangeNotifier {
   bool _isReturnComplete = false;
   int _rating = 0;
   QRViewController? _controller;
+  final _stationRepository = StationRepository.instance;
 
   QRScanViewModel({
     RentalRepository? rentalRepository,
@@ -99,37 +101,63 @@ class QRScanViewModel with ChangeNotifier {
     notifyListeners();
 
     try {
-      // QR 코드에서 액세서리 ID와 스테이션 ID 추출
-      final parts = qrCode.split('-');
+      final parts = qrCode.split('_');
       if (parts.length != 2) {
         throw Exception('잘못된 QR 코드입니다.');
       }
 
-      final stationId = parts[0];
-      final accessoryId = parts[1];
+      final scannedStationId = parts[0];
+      final scannedAccessoryId = parts[1];
 
-      // 액세서리 정보 조회
-      final accessory = await _accessoryRepository.get(accessoryId);
+      // 저장된 정보 확인
+      final selectedStationId =
+          await _storageService.getString('selected_station_id');
+      final selectedAccessoryId =
+          await _storageService.getString('selected_accessory_id');
+      final selectedStationName =
+          await _storageService.getString('selected_station_name');
+      final selectedAccessoryName =
+          await _storageService.getString('selected_accessory_name');
+
+      // 디버깅을 위한 로그 출력
+      print('=== QR 스캔 정보 ===');
+      print('선택된 스테이션 ID: $selectedStationId');
+      print('선택된 액세서리 ID: $selectedAccessoryId');
+      print('스캔된 스테이션 ID: $scannedStationId');
+      print('스캔된 액세서리 ID: $scannedAccessoryId');
+      print('==================');
+
+      // 선택된 정보와 스캔된 정보 비교
+      if (selectedStationId != null && selectedAccessoryId != null) {
+        if (selectedStationId != scannedStationId ||
+            selectedAccessoryId != scannedAccessoryId) {
+          _error =
+              'QR 코드가 선택하신 대여 정보와 일치하지 않습니다.\n선택하신 "${selectedAccessoryName}"와(과) "${selectedStationName}"의 QR 코드를 스캔해주세요.';
+          _isScanning = true;
+          notifyListeners();
+          return;
+        }
+      }
+
+      // 액세서리와 스테이션 정보 조회
+      final accessory = await _accessoryRepository.get(scannedAccessoryId);
+      final station = await _stationRepository.getStation(scannedStationId);
+
       if (!accessory.isAvailable) {
         throw Exception('현재 대여할 수 없는 물품입니다.');
       }
 
-      // 스테이션과 액세서리 정보 저장
-      await Future.wait([
-        _storageService.setString('scanned_accessory_name', accessory.name),
-        _storageService.setString(
-            'scanned_station_name', '강남역점'), // TODO: 실제 스테이션 이름으로 변경
-        _storageService.setString('scanned_accessory_id', accessoryId),
-        _storageService.setString('scanned_station_id', stationId),
-      ]);
+      if (station == null) {
+        throw Exception('스테이션 정보를 찾을 수 없습니다.');
+      }
 
       _rental = Rental(
         id: 'rental-${DateTime.now().millisecondsSinceEpoch}',
-        userId: 'test-user-id', // TODO: 실제 사용자 ID로 변경
-        accessoryId: accessoryId,
-        stationId: stationId,
+        userId: 'test-user-id',
+        accessoryId: scannedAccessoryId,
+        stationId: scannedStationId,
         accessoryName: accessory.name,
-        stationName: '강남역점', // TODO: 실제 스테이션 이름으로 변경
+        stationName: station.name,
         totalPrice: _rentalDuration * accessory.pricePerHour,
         status: RentalStatus.active,
         createdAt: DateTime.now(),
@@ -137,6 +165,7 @@ class QRScanViewModel with ChangeNotifier {
       );
     } catch (e) {
       _error = e.toString();
+      _isScanning = true;
     } finally {
       _isProcessing = false;
       notifyListeners();
@@ -185,6 +214,12 @@ class QRScanViewModel with ChangeNotifier {
   void resumeScanning() {
     _isScanning = true;
     _error = null;
+    notifyListeners();
+  }
+
+  void clearError() {
+    _error = null;
+    _isScanning = true;
     notifyListeners();
   }
 }

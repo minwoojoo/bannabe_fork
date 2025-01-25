@@ -7,7 +7,7 @@ class AccessoryRepository {
     return [
       // 충전기
       Accessory(
-        id: 'charger1',
+        id: 'charger-1',
         name: '노트북 고출력 충전기',
         description: '100W PD 고속 충전기',
         pricePerHour: 2000,

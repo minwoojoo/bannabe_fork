@@ -74,29 +74,29 @@ class _HomeViewState extends State<HomeView> {
                                 final hasPermission =
                                     await viewModel.requestLocationPermission();
                                 if (!hasPermission && context.mounted) {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('위치 권한 필요'),
-                                      content: const Text(
-                                        '주변 스테이션을 찾기 위해 위치 권한이 필요합니다.\n설정에서 위치 권한을 허용해주세요.',
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('위치 권한 필요'),
+                                        content: const Text(
+                                          '주변 스테이션을 찾기 위해 위치 권한이 필요합니다.\n설정에서 위치 권한을 허용해주세요.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            child: const Text('취소'),
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                              // TODO: 시스템 설정으로 이동
+                                            },
+                                            child: const Text('설정으로 이동'),
+                                          ),
+                                        ],
                                       ),
-                                      actions: [
-                                        TextButton(
-                                          child: const Text('취소'),
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.pop(context);
-                                            // TODO: 시스템 설정으로 이동
-                                          },
-                                          child: const Text('설정으로 이동'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
+                                    );
                                 }
                               },
                             ),
@@ -131,85 +131,85 @@ class _HomeViewState extends State<HomeView> {
                           ),
                           SliverToBoxAdapter(
                             child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: GestureDetector(
-                                onTap: () {
-                                  Navigator.of(context)
-                                      .pushNamed(Routes.rentalStatus);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Colors.grey[300]!,
+                                padding: const EdgeInsets.all(16.0),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context)
+                                        .pushNamed(Routes.rentalStatus);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: Colors.grey[300]!,
+                                      ),
                                     ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          const Text(
-                                            '현재 대여 중',
-                                            style: TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text(
+                                              '현재 대여 중',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.refresh),
+                                            IconButton(
+                                              icon: const Icon(Icons.refresh),
                                             onPressed: () {
                                               viewModel.refreshRemainingTime();
                                             },
-                                          ),
-                                        ],
-                                      ),
-                                      if (viewModel.activeRentals.isEmpty)
-                                        const Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            vertical: 16.0,
-                                          ),
-                                          child: Text('현재 대여 중인 물품이 없습니다.'),
-                                        )
-                                      else
-                                        ...viewModel.activeRentals.map(
-                                          (rental) => Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 16.0,
                                             ),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  rental.accessoryName,
-                                                  style: const TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  '남은 시간: ${rental.remainingTime.inHours}시간 ${rental.remainingTime.inMinutes % 60}분',
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.grey[600],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                                          ],
                                         ),
-                                    ],
+                                        if (viewModel.activeRentals.isEmpty)
+                                          const Padding(
+                                            padding: EdgeInsets.symmetric(
+                                              vertical: 16.0,
+                                            ),
+                                            child: Text('현재 대여 중인 물품이 없습니다.'),
+                                          )
+                                        else
+                                          ...viewModel.activeRentals.map(
+                                            (rental) => Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 16.0,
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    rental.accessoryName,
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                    fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    '남은 시간: ${rental.remainingTime.inHours}시간 ${rental.remainingTime.inMinutes % 60}분',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
                           ),
                           SliverToBoxAdapter(
                             child: Padding(

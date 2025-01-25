@@ -91,130 +91,134 @@ class _QRScanContentState extends State<_QRScanContent> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('QR 스캔'),
-        centerTitle: true,
+        title: Text(Provider.of<QRScanViewModel>(context).isReturn
+            ? 'QR 스캔하여 반납하기'
+            : 'QR 스캔하여 대여하기'),
       ),
-      body: SafeArea(
-        child: Consumer<QRScanViewModel>(
-          builder: (context, viewModel, _) {
-            if (viewModel.isScanning) {
-              return Stack(
+      body: Stack(
+        children: [
+          if (Provider.of<QRScanViewModel>(context).hasCameraPermission) ...[
+            QRView(
+              key: qrKey,
+              onQRViewCreated: (QRViewController controller) {
+                this.controller = controller;
+                Provider.of<QRScanViewModel>(context, listen: false)
+                    .onQRViewCreated(controller);
+              },
+              overlay: QrScannerOverlayShape(
+                borderColor: AppColors.primary,
+                borderRadius: 10,
+                borderLength: 30,
+                borderWidth: 10,
+                cutOutSize: 300,
+              ),
+            ),
+            Positioned.fill(
+              child: Container(
+                alignment: Alignment.bottomCenter,
+                padding: const EdgeInsets.only(bottom: 100),
+                child: Text(
+                  Provider.of<QRScanViewModel>(context).isReturn
+                      ? '반납할 스테이션의 QR 코드를 스캔해주세요'
+                      : '대여할 물품의 QR 코드를 스캔해주세요',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ] else ...[
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (viewModel.hasCameraPermission) ...[
-                    QRView(
-                      key: qrKey,
-                      onQRViewCreated: (QRViewController controller) {
-                        this.controller = controller;
-                        viewModel.onQRViewCreated(controller);
-                      },
-                      overlay: QrScannerOverlayShape(
-                        borderColor: AppColors.primary,
-                        borderRadius: 10,
-                        borderLength: 30,
-                        borderWidth: 10,
-                        cutOutSize: 300,
-                      ),
+                  Icon(
+                    Icons.camera_alt_outlined,
+                    color: AppColors.error,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    '카메라 권한이 필요합니다',
+                    style: AppTheme.bodyLarge.copyWith(
+                      color: AppColors.error,
                     ),
-                    Positioned.fill(
-                      child: Container(
-                        alignment: Alignment.bottomCenter,
-                        padding: const EdgeInsets.only(bottom: 100),
-                        child: Text(
-                          viewModel.isReturn
-                              ? '반납할 스테이션의 QR 코드를 스캔해주세요'
-                              : '대여할 물품의 QR 코드를 스캔해주세요',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  TextButton(
+                    onPressed: () => openAppSettings(),
+                    child: const Text('설정으로 이동'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (Provider.of<QRScanViewModel>(context).error != null)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.7),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 40),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                  ] else ...[
-                    Center(
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.camera_alt_outlined,
-                            color: AppColors.error,
+                          const Icon(
+                            Icons.error_outline,
+                            color: Colors.red,
                             size: 48,
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            '카메라 권한이 필요합니다',
-                            style: AppTheme.bodyLarge.copyWith(
-                              color: AppColors.error,
+                            Provider.of<QRScanViewModel>(context).error!,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              height: 1.5,
                             ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: () {
+                              Provider.of<QRScanViewModel>(context,
+                                      listen: false)
+                                  .clearError();
+                            },
+                            child: const Text('다시 스캔하기'),
+                          ),
+                          const SizedBox(height: 8),
                           TextButton(
-                            onPressed: () => openAppSettings(),
-                            child: const Text('설정으로 이동'),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text('돌아가기'),
                           ),
                         ],
                       ),
                     ),
                   ],
-                ],
-              );
-            }
-
-            if (viewModel.isProcessing) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const HoneyLoadingAnimation(
-                      isStationSelected: true,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      viewModel.isReturn
-                          ? '반납을 처리하고 있습니다...'
-                          : 'QR 코드를 처리하고 있습니다...',
-                      style: AppTheme.bodyLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
                 ),
-              );
-            }
-
-            if (viewModel.error != null) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: AppColors.error,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      viewModel.error!,
-                      style: AppTheme.bodyLarge.copyWith(
-                        color: AppColors.error,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    TextButton(
-                      onPressed: viewModel.resumeScanning,
-                      child: const Text('다시 시도'),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return const Center(child: CircularProgressIndicator());
-          },
-        ),
+              ),
+            ),
+          if (Provider.of<QRScanViewModel>(context).isProcessing)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+        ],
       ),
     );
   }
