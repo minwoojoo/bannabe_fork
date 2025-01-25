@@ -36,8 +36,8 @@ class _PaymentViewState extends State<PaymentView> {
   Future<void> _loadSavedInfo() async {
     final storage = StorageService.instance;
     final savedAccessoryName =
-        await storage.getString('selected_accessory_name');
-    final savedStationName = await storage.getString('selected_station_name');
+        await storage.getString('scanned_accessory_name');
+    final savedStationName = await storage.getString('scanned_station_name');
     final savedHours = await storage.getInt('selected_rental_duration');
     final savedPrice = await storage.getInt('selected_price');
 

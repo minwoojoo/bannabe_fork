@@ -108,18 +108,20 @@ class QRScanViewModel with ChangeNotifier {
       final stationId = parts[0];
       final accessoryId = parts[1];
 
-      // 액세서리 정보 조회와 정보 저장을 동시에 처리
-      final Future<void> saveFuture = Future.wait([
-        _storageService.setString('scanned_accessory_id', accessoryId),
-        _storageService.setString('scanned_station_id', stationId),
-      ]);
-
+      // 액세서리 정보 조회
       final accessory = await _accessoryRepository.get(accessoryId);
       if (!accessory.isAvailable) {
         throw Exception('현재 대여할 수 없는 물품입니다.');
       }
 
-      await saveFuture;
+      // 스테이션과 액세서리 정보 저장
+      await Future.wait([
+        _storageService.setString('scanned_accessory_name', accessory.name),
+        _storageService.setString(
+            'scanned_station_name', '강남역점'), // TODO: 실제 스테이션 이름으로 변경
+        _storageService.setString('scanned_accessory_id', accessoryId),
+        _storageService.setString('scanned_station_id', stationId),
+      ]);
 
       _rental = Rental(
         id: 'rental-${DateTime.now().millisecondsSinceEpoch}',
