@@ -8,6 +8,7 @@ import '../../../core/constants/app_theme.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../app/routes.dart';
 import '../../../core/widgets/loading_animation.dart';
+import '../../../core/services/storage_service.dart';
 
 class QRScanView extends StatelessWidget {
   final int rentalDuration;
@@ -17,94 +18,83 @@ class QRScanView extends StatelessWidget {
   const QRScanView({
     super.key,
     required this.rentalDuration,
-    this.isReturn = false,
+    required this.isReturn,
     this.rental,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<QRScanViewModel>(
-      create: (_) => QRScanViewModel(
+    return ChangeNotifierProvider(
+      create: (context) => QRScanViewModel(
         rentalDuration: rentalDuration,
         isReturn: isReturn,
-        initialRental: rental,
-      ),
-      child: Builder(
-        builder: (context) {
-          final viewModel = Provider.of<QRScanViewModel>(context, listen: true);
-
-          // QR 스캔 결과 처리
-          if (!viewModel.isProcessing) {
-            if (viewModel.isReturnComplete) {
-              // 반납 완료 시 true 반환
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.of(context).pop(true);
-              });
-            } else if (viewModel.rental != null && !viewModel.isReturn) {
-              // 대여 시 결제 페이지로 이동
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.of(context).pushReplacementNamed(
-                  Routes.payment,
-                  arguments: {
-                    'accessory': {
-                      'id': viewModel.rental!.accessoryId,
-                      'name': viewModel.rental!.accessoryName,
-                      'pricePerHour':
-                          viewModel.rental!.totalPrice ~/ rentalDuration,
-                    },
-                    'station': {
-                      'id': viewModel.rental!.stationId,
-                      'name': viewModel.rental!.stationName,
-                    },
-                    'hours': rentalDuration,
-                  },
-                );
-              });
+      )..addListener(() {
+          final viewModel = context.read<QRScanViewModel>();
+          if (viewModel.rental != null) {
+            if (isReturn) {
+              // 반납 완료 시 반납 완료 상태로 돌아가기
+              Navigator.of(context).pop(true);
+            } else {
+              // 대여 시 결제 화면으로 이동
+              Navigator.of(context).pushReplacementNamed(
+                Routes.payment,
+                arguments: viewModel.rental,
+              );
             }
           }
-
-          return const _QRScanContent();
-        },
-      ),
+        }),
+      child: const _QRScanView(),
     );
   }
 }
 
-class _QRScanContent extends StatefulWidget {
-  const _QRScanContent();
-
-  @override
-  State<_QRScanContent> createState() => _QRScanContentState();
-}
-
-class _QRScanContentState extends State<_QRScanContent> {
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
-
-  @override
-  void dispose() {
-    controller?.dispose();
-    super.dispose();
-  }
+class _QRScanView extends StatelessWidget {
+  const _QRScanView();
 
   @override
   Widget build(BuildContext context) {
+    final viewModel = context.watch<QRScanViewModel>();
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(Provider.of<QRScanViewModel>(context).isReturn
-            ? 'QR 스캔하여 반납하기'
-            : 'QR 스캔하여 대여하기'),
+        title: Text(viewModel.isReturn ? 'QR 스캔하여 반납하기' : 'QR 스캔하여 대여하기'),
+        actions: [
+          // 스킵 버튼 추가
+          TextButton(
+            onPressed: () async {
+              // 선택된 정보 확인
+              final storageService = StorageService.instance;
+              final selectedStationId =
+                  await storageService.getString('selected_station_id');
+              final selectedAccessoryId =
+                  await storageService.getString('selected_accessory_id');
+
+              print('=== 선택된 정보 ===');
+              print('선택된 스테이션 ID: $selectedStationId');
+              print('선택된 액세서리 ID: $selectedAccessoryId');
+              print('==================');
+
+              if (context.mounted) {
+                if (viewModel.isReturn) {
+                  Navigator.of(context).pop(true);
+                } else {
+                  Navigator.of(context).pushReplacementNamed(Routes.payment);
+                }
+              }
+            },
+            child: const Text(
+              '[DEV] 스킵',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+        ],
       ),
       body: Stack(
         children: [
           if (Provider.of<QRScanViewModel>(context).hasCameraPermission) ...[
             QRView(
-              key: qrKey,
-              onQRViewCreated: (QRViewController controller) {
-                this.controller = controller;
-                Provider.of<QRScanViewModel>(context, listen: false)
-                    .onQRViewCreated(controller);
-              },
+              key: GlobalKey(debugLabel: 'QR'),
+              onQRViewCreated: viewModel.onQRViewCreated,
               overlay: QrScannerOverlayShape(
                 borderColor: AppColors.primary,
                 borderRadius: 10,
