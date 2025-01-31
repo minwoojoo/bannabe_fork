@@ -202,7 +202,7 @@ class _RentalDetailViewState extends State<RentalDetailView> {
                                         divisions: 23,
                                         label: '$_selectedHours시간',
                                         onChanged: (value) {
-                                          setState(() {
+                                setState(() {
                                             _selectedHours = value.toInt();
                                           });
                                           // 시간 변경 시 쿠키 업데이트
