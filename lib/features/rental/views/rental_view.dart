@@ -102,14 +102,15 @@ class _RentalContent extends StatelessWidget {
                                       vertical: 12,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(8),
+                                      color: const Color(0xFFFFBE00)
+                                          .withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Row(
                                       children: [
                                         Icon(
                                           Icons.search,
-                                          color: Colors.grey[600],
+                                          color: Theme.of(context).primaryColor,
                                           size: 20,
                                         ),
                                         const SizedBox(width: 8),
@@ -129,78 +130,119 @@ class _RentalContent extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
-                                  SizedBox(
-                                    height: 40,
-                                    child: ListView(
+                                  Container(
+                                    height: 45,
+                                    width: double.infinity,
+                                    decoration: const BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(
+                                          color: Color(0xFFE0E0E0),
+                                          width: 1,
+                                        ),
+                                      ),
+                                    ),
+                                    child: SingleChildScrollView(
                                       scrollDirection: Axis.horizontal,
-                                      children: AccessoryCategory.values
-                                          .map(
-                                            (category) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                  right: 8.0),
-                                              child: ElevatedButton(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: viewModel
-                                                              .selectedCategory ==
-                                                          category.toString()
-                                                      ? AppColors.primary
-                                                      : Colors.grey[200],
-                                                  foregroundColor: viewModel
-                                                              .selectedCategory ==
-                                                          category.toString()
-                                                      ? Colors.white
-                                                      : Colors.black,
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                    horizontal: 16,
-                                                  ),
-                                                ),
-                                                onPressed: () =>
-                                                    viewModel.selectCategory(
-                                                        category.toString()),
-                                                child: Text(
+                                      child: Row(
+                                        children: AccessoryCategory.values
+                                            .map(
+                                              (category) => IntrinsicWidth(
+                                                child: _buildCategoryTab(
+                                                  context,
                                                   _getCategoryName(category),
+                                                  category.toString(),
+                                                  viewModel,
                                                 ),
                                               ),
-                                            ),
-                                          )
-                                          .toList(),
+                                            )
+                                            .toList(),
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final accessory =
-                                    viewModel.filteredAccessories[index];
-                                return InkWell(
-                                  onTap: () {
-                                    viewModel.selectAccessory(accessory);
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) => RentalDetailView(
-                                          accessory: accessory,
-                                          station: viewModel.selectedStation,
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            sliver: SliverGrid(
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio: 0.8,
+                                mainAxisSpacing: 20,
+                                crossAxisSpacing: 20,
+                              ),
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final accessory =
+                                      viewModel.filteredAccessories[index];
+                                  // 임시로 랜덤 수량 생성 (0~5)
+                                  final quantity = index % 6;
+                                  return InkWell(
+                                    onTap: () {
+                                      viewModel.selectAccessory(accessory);
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              RentalDetailView(
+                                            accessory: accessory,
+                                            station: viewModel.selectedStation,
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color: Colors.grey[200]!,
-                                          width: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Row(
+                                      );
+                                    },
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
                                       children: [
-                                        Expanded(
+                                        Stack(
+                                          children: [
+                                            AspectRatio(
+                                              aspectRatio: 1,
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey[100],
+                                                ),
+                                                child: Image.asset(
+                                                  accessory.imageUrl.isNotEmpty
+                                                      ? accessory.imageUrl
+                                                      : 'assets/images/bannabe.png',
+                                                  fit: BoxFit.contain,
+                                                  errorBuilder: (context, error,
+                                                      stackTrace) {
+                                                    return Image.asset(
+                                                      'assets/images/bannabe.png',
+                                                      fit: BoxFit.contain,
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ),
+                                            if (quantity == 0)
+                                              Positioned.fill(
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black
+                                                        .withOpacity(0.5),
+                                                  ),
+                                                  child: const Center(
+                                                    child: Text(
+                                                      '재고 없음',
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.all(8),
                                           child: Column(
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
@@ -209,33 +251,21 @@ class _RentalContent extends StatelessWidget {
                                                 accessory.name,
                                                 style: const TextStyle(
                                                   fontSize: 16,
-                                                  fontWeight: FontWeight.w500,
+                                                  fontWeight: FontWeight.w400,
                                                 ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                accessory.description,
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  color: Colors.grey[600],
-                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ],
                                           ),
                                         ),
-                                        Text(
-                                          '${accessory.pricePerHour}원/시간',
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
                                       ],
                                     ),
-                                  ),
-                                );
-                              },
-                              childCount: viewModel.filteredAccessories.length,
+                                  );
+                                },
+                                childCount:
+                                    viewModel.filteredAccessories.length,
+                              ),
                             ),
                           ),
                         ],
@@ -249,6 +279,39 @@ class _RentalContent extends StatelessWidget {
         ),
         const AppBottomNavigationBar(currentIndex: 1),
       ],
+    );
+  }
+
+  Widget _buildCategoryTab(
+    BuildContext context,
+    String label,
+    String value,
+    RentalViewModel viewModel,
+  ) {
+    final isSelected = viewModel.selectedCategory == value;
+    return InkWell(
+      onTap: () => viewModel.selectCategory(value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isSelected ? const Color(0xFFFFBE00) : Colors.transparent,
+              width: 2,
+            ),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              color: isSelected ? Colors.black : Colors.grey[600],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
